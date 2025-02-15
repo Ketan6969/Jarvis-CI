@@ -11,7 +11,7 @@ generate_node() {
     -e "s|PEM_FILE_VAR|${PEM_FILE}|g" \
     -e "s|REPO_VAR|${REPO_URL}|g" \
     -e "s|DEPLOY_PATH_VAR|${DEPLOY_PATH}|g" \
-    -e "s|BRANCH_NAME_VAR|${BRANCH_NAME}|g" ./templates/node_template.txt  > "$FILE_NAME.txt"
+    -e "s|BRANCH_NAME_VAR|${BRANCH_NAME}|g" ./templates/node_template.jenkinsfile  > "$FILE_NAME.jenkinsfile"
 
     echo "File generated! ${FILE_NAME}"    
 }
@@ -26,7 +26,7 @@ generate_meteor() {
     -e "s|PEM_FILE_VAR|${PEM_FILE}|g" \
     -e "s|REPO_VAR|${REPO_URL}|g" \
     -e "s|DEPLOY_PATH_VAR|${DEPLOY_PATH}|g" \
-    -e "s|BRANCH_NAME_VAR|${BRANCH_NAME}|g" ./templates/meteor_template.txt  > "$FILE_NAME.txt"
+    -e "s|BRANCH_NAME_VAR|${BRANCH_NAME}|g" ./templates/meteor_template.jenkinsfile  > "$FILE_NAME.jenkinsfile"
 
     echo "File generated! ${FILE_NAME}"
 }

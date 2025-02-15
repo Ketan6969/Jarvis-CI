@@ -1,0 +1,136 @@
+pipeline {
+    agent any
+    environment {
+        NVM_DIR = "${HOME}/.nvm"
+        SERVER_PATH = "/home/meteor/node_demo"
+        BUILDFOLDER = "/home/var/jenkins/node_demo_build"
+        DEPLOY_PATH = "/home/meteor/config/"
+        WORKDIR = "/var/lib/jenkins/node_demo"
+        USERNAME = "meteor"
+        SERVERIP = 192.168.0.100]
+        PEMFILE  = "meteor"
+        NODE_VERSION = 22
+
+    }
+    triggers {
+        pollSCM('* * * * *') // Polling every minute for demonstration purposes; adjust as needed
+    }
+    stages {
+        stage('clone') {
+            when {
+                expression { return !env.RERUN_STAGE || env.RERUN_STAGE == 'clone' || env.PREV_STAGE == 'clone' }
+            }
+            steps {
+                script {
+                    // Clone the repository into the Jenkins workspace
+                    checkout([
+                        $class: 'GitSCM', 
+                        branches: [[name: '*/main']], 
+                        doGenerateSubmoduleConfigurations: false, 
+                        extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir: '.']], 
+                        submoduleCfg: [], 
+                        userRemoteConfigs: [[
+                            credentialsId: 'deep-ssh', 
+                            url: 'meteor.github.com'
+                        ]]
+                    ])
+                    env.PREV_STAGE = 'clone'
+                }
+            }
+        }
+        stage('build') {
+            when {
+                expression { return !env.RERUN_STAGE || env.RERUN_STAGE == 'build' || env.PREV_STAGE == 'clone' || env.PREV_STAGE == 'build' }
+            }
+            steps {
+                script {
+                    // Execute the script using bash
+                    sh '''
+                        #!/bin/bash
+                        set -e
+
+                        # Navigate to project directory
+                        cd $WORKDIR
+                        
+                        # Load necessary environments
+                        . ~/.nvm/nvm.sh > /dev/null 2>&1
+                        . ~/.bashrc > /dev/null 2>&1
+                        . ~/.profile
+                        
+                        # Use Node Version
+                        nvm i $NODE_VERSION > /dev/null 2>&1
+                        
+                        #Working Directory List files
+                        cd $WORKDIR
+                        ls -laSh
+                        tar -zcf bundle.tar.gz *
+                    '''
+                    env.PREV_STAGE = 'build'
+
+                }
+            }
+        }
+        stage('servercopy') {
+            when {
+                expression { return !env.RERUN_STAGE || env.RERUN_STAGE == 'servercopy' || env.PREV_STAGE == 'clone' || env.PREV_STAGE == 'build' || env.PREV_STAGE == 'servercopy' }
+            }
+            steps {
+                script {
+                    // Execute the script using bash
+                    sh '''
+                        #!/bin/bash
+                        set -e
+                        
+                        # Transfer bundle to server
+                        scp -r -i ~/workspace/$PEMFILE $WORKDIR/bundle.tar.gz $USERNAME@$SERVERIP:$SERVER_PATH
+                        
+                        # Check if SCP was successful
+                        if [ $? -eq 0 ]; then
+                            echo "Build Copied to server ✅"
+                        else
+                            echo "Build Copy Failed !!" && exit 1
+                        fi
+                        
+                        # Cleanup
+                        cd $WORKDIR
+                        ls -laSh
+                        rm -rf bundle* .bundle*
+                    '''
+                    env.PREV_STAGE = 'servercopy'
+
+                }
+            }
+        }
+        
+        stage('deploy') {
+            when {
+                expression { return !env.RERUN_STAGE || env.RERUN_STAGE == 'deploy' || env.PREV_STAGE == 'clone' || env.PREV_STAGE == 'build' || env.PREV_STAGE == 'servercopy' ||  env.PREV_STAGE == 'deploy' }
+            }
+            steps {
+                script {
+                    // Execute the script using bash
+                    sh '''
+                        #!/bin/bash
+                        set -e
+                        
+                        cd $WORKDIR
+                        ls -laSh
+                        ssh -i ~/workspace/$PEMFILE $USERNAME@$SERVERIP -- < $DEPLOY_PATH/deploy.sh
+                    '''
+                    env.PREV_STAGE = 'deploy'
+                }
+            }
+        }
+    }
+    post {
+        always {
+            echo 'Pipeline finished.'
+        }
+        failure {
+            echo 'Pipeline failed!'
+        }
+        success {
+            echo 'Pipeline succeeded!'
+        }
+    }
+}

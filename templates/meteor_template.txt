@@ -2,18 +2,17 @@ pipeline {
     agent any
     environment {
         NVM_DIR = "${HOME}/.nvm"
-        SERVER_PATH = "server"
-        BUILDFOLDER = "build"
-        DEPLOY_PATH = "deploy"
-        WORKDIR = "workdir"
-        USERNAME = "usernmae"
-        SERVERIP = 192.168.0.100
-        PEMFILE  = "pemfile"
-        NODE_VERSION = 22
-
+        SERVER_PATH = "SERVER_PATH_VAR"
+        BUILDFOLDER = "BUILD_PATH_VAR"
+        WORKDIR = "WORKDIR_VAR"
+        DEPLOY_PATH = "DEPLOY_PATH_VAR"
+        PEMFILE = "PEMFILE_VAR"
+        SERVERIP = "SERVER_IP_VAR"
+        USERNAME = "USERNAME_VAR"
+        NODE_VERSION = "NODE_VERSION_VAR"
     }
     triggers {
-        pollSCM('* * * * *') // Polling every minute for demonstration purposes; adjust as needed
+         pollSCM('* * * * *') // Polling every minute for demonstration purposes; adjust as needed
     }
     stages {
         stage('clone') {
@@ -25,13 +24,13 @@ pipeline {
                     // Clone the repository into the Jenkins workspace
                     checkout([
                         $class: 'GitSCM', 
-                        branches: [[name: '*/$main']], 
+                        branches: [[name: '*/BRANCH_VAR']], 
                         doGenerateSubmoduleConfigurations: false, 
                         extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir: '.']], 
                         submoduleCfg: [], 
                         userRemoteConfigs: [[
-                            credentialsId: 'deep-ssh', 
-                            url: '$REPOSITORY_VAR'
+                            credentialsId: 'Deep-Github', 
+                            url: 'REPO_VAR'
                         ]]
                     ])
                     env.PREV_STAGE = 'clone'
@@ -57,13 +56,28 @@ pipeline {
                         . ~/.bashrc > /dev/null 2>&1
                         . ~/.profile
                         
-                        # Use Node version 20
-                        nvm i $NODE_VERSION > /dev/null 2>&1
+                        # Use Node version 14
+                        nvm install $NODE_VERSION > /dev/null 2>&1
+                        nvm install $NODE_VERSION > /dev/null 2>&1
                         
-                        #Working Directory List files
-                        cd $WORKDIR
+                        # List files
                         ls -laSh
-                        tar -zcf bundle.tar.gz *
+                        
+                        # Uncomment if needed
+		                rm -rf node_modules/
+                        #export NODE_TLS_REJECT_UNAUTHORIZED=0
+                        
+                        # Install NPM packages
+                        meteor npm install
+                        
+                        # Build the project
+		                echo "------------------ $(pwd) -----------------"
+                        meteor --server-only build --directory $BUILDFOLDER
+                        
+                        # Prepare bundle
+                        cd $BUILDFOLDER
+                        ls -la
+                        tar -czvf bundle.tar.gz bundle/
                     '''
                     env.PREV_STAGE = 'build'
 
@@ -82,7 +96,7 @@ pipeline {
                         set -e
                         
                         # Transfer bundle to server
-                        scp -r -i ~/workspace/$PEMFILE $WORKDIR/bundle.tar.gz $USERNAME@$SERVERIP:$SERVER_PATH
+                        scp -r -i ~/workspace/$PEMFILE $BUILDFOLDER/bundle.tar.gz $USERNAME@$SERVERIP:$SERVER_PATH
                         
                         # Check if SCP was successful
                         if [ $? -eq 0 ]; then
@@ -92,19 +106,18 @@ pipeline {
                         fi
                         
                         # Cleanup
-                        cd $WORKDIR
+                        cd $BUILDFOLDER
                         ls -laSh
-                        rm -rf bundle* .bundle*
+                        rm -rf .bundle*
                     '''
                     env.PREV_STAGE = 'servercopy'
 
                 }
             }
         }
-        
         stage('deploy') {
             when {
-                expression { return !env.RERUN_STAGE || env.RERUN_STAGE == 'deploy' || env.PREV_STAGE == 'clone' || env.PREV_STAGE == 'build' || env.PREV_STAGE == 'servercopy' || env.PREV_STAGE == 'sonarqube' ||  env.PREV_STAGE == 'deploy' }
+                expression { return !env.RERUN_STAGE || env.RERUN_STAGE == 'deploy' || env.PREV_STAGE == 'clone' || env.PREV_STAGE == 'build' || env.PREV_STAGE == 'servercopy' || env.PREV_STAGE == 'sonarqube' || env.PREV_STAGE == 'deploy' }
             }
             steps {
                 script {
@@ -114,8 +127,7 @@ pipeline {
                         set -e
                         
                         cd $WORKDIR
-                        ls -laSh
-                        ssh -i ~/workspace/$PEMFILE $USERNAME@$SERVERIP -- < $DEPLOY_PATH/deploy.sh
+                        ssh -i ~/workspace/$PEMFILE $USERNAME@$SERVERIP "bash $DEPLOY_PATH/deploy.sh"
                     '''
                     env.PREV_STAGE = 'deploy'
                 }

@@ -2,14 +2,14 @@ pipeline {
     agent any
     environment {
         NVM_DIR = "${HOME}/.nvm"
-        SERVER_PATH = ""
-        BUILDFOLDER = "BUILD_PATH_VAR"
-        DEPLOY_PATH = "/home/deploy"
-        WORKDIR = "WORKSPACE_VAR"
+        SERVER_PATH = "/server"
+        BUILDFOLDER = "/build"
+        DEPLOY_PATH = "/deploy"
+        WORKDIR = "/workdir"
         USERNAME = "meteor"
         SERVERIP = 192.168.0.100
-        PEMFILE  = "PEMFILE_VAR"
-        NODE_VERSION = 2
+        PEMFILE  = "meteor-ssh.pem"
+        NODE_VERSION = 22
 
     }
     triggers {
@@ -25,13 +25,13 @@ pipeline {
                     // Clone the repository into the Jenkins workspace
                     checkout([
                         $class: 'GitSCM', 
-                        branches: [[name: '*/$main']], 
+                        branches: [[name: '*/main']], 
                         doGenerateSubmoduleConfigurations: false, 
                         extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir: '.']], 
                         submoduleCfg: [], 
                         userRemoteConfigs: [[
                             credentialsId: 'deep-ssh', 
-                            url: '$REPOSITORY_VAR'
+                            url: '$metor.github.com'
                         ]]
                     ])
                     env.PREV_STAGE = 'clone'
@@ -104,7 +104,7 @@ pipeline {
         
         stage('deploy') {
             when {
-                expression { return !env.RERUN_STAGE || env.RERUN_STAGE == 'deploy' || env.PREV_STAGE == 'clone' || env.PREV_STAGE == 'build' || env.PREV_STAGE == 'servercopy' || env.PREV_STAGE == 'sonarqube' ||  env.PREV_STAGE == 'deploy' }
+                expression { return !env.RERUN_STAGE || env.RERUN_STAGE == 'deploy' || env.PREV_STAGE == 'clone' || env.PREV_STAGE == 'build' || env.PREV_STAGE == 'servercopy' ||  env.PREV_STAGE == 'deploy' }
             }
             steps {
                 script {

@@ -1,4 +1,0 @@
-SERVER=$SERVER_VAR
-IP=$IP_VAR
-
-Hello 

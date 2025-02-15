@@ -31,7 +31,7 @@ pipeline {
                         submoduleCfg: [], 
                         userRemoteConfigs: [[
                             credentialsId: 'deep-ssh', 
-                            url: '$REPO_VAR'
+                            url: 'REPO_VAR'
                         ]]
                     ])
                     env.PREV_STAGE = 'clone'
@@ -57,7 +57,7 @@ pipeline {
                         . ~/.bashrc > /dev/null 2>&1
                         . ~/.profile
                         
-                        # Use Node version 20
+                        # Use Node Version
                         nvm i $NODE_VERSION > /dev/null 2>&1
                         
                         #Working Directory List files
